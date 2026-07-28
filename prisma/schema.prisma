@@ -1,0 +1,140 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  FINANCE
+  ADMIN
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum BookingStatus {
+  BOOKED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(150)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.VarChar(255)
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  doctorSchedules DoctorSchedule[]
+  doctorBookings  Booking[]        @relation("DoctorBookings")
+  patientBookings Booking[]        @relation("PatientBookings")
+  doctorProfile DoctorProfile?
+
+  @@index([role])
+}
+
+model DoctorProfile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  specialization String @db.VarChar(100)
+  bio             String? @db.Text
+  imageUrl        String?
+  phone           String?
+
+  experienceYears Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+} 
+
+model DoctorSchedule {
+  id                String    @id @default(uuid()) @db.Uuid
+  doctorId          String    @db.Uuid
+  dayOfWeek         DayOfWeek
+  startTime         DateTime  @db.Time(0)
+  endTime           DateTime  @db.Time(0)
+  durationInMinutes Int
+  createdAt         DateTime  @default(now())
+
+  doctor  User      @relation(fields: [doctorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([doctorId, dayOfWeek, startTime, endTime])
+
+  @@index([doctorId])
+  @@index([dayOfWeek])
+
+}
+
+model Booking {
+  id          String        @id @default(uuid()) @db.Uuid
+  patientId   String        @db.Uuid
+  doctorId    String        @db.Uuid
+  bookingDate DateTime      @db.Date
+  startTime   DateTime      @db.Time(0)
+  endTime     DateTime      @db.Time(0)
+  status      BookingStatus @default(BOOKED)
+  createdAt   DateTime      @default(now())
+
+  patient  User           @relation("PatientBookings", fields: [patientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  doctor   User           @relation("DoctorBookings", fields: [doctorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  visit    Visit?
+
+  @@unique([doctorId, bookingDate, startTime])
+  @@unique([patientId, bookingDate, startTime])
+  @@unique([patientId, bookingDate,doctorId])
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([bookingDate])
+  @@index([status])
+}
+
+model Visit {
+  id           String    @id @default(uuid()) @db.Uuid
+  bookingId    String    @unique @db.Uuid
+  medicalNotes String    @db.Text
+  diagnosis    String?   @db.Text
+  totalAmount  Decimal   @default(0) @db.Decimal(12, 2)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  treatments Treatment[]
+}
+
+model Treatment {
+  id            String  @id @default(uuid()) @db.Uuid
+  visitId       String  @db.Uuid
+  treatmentName String  @db.VarChar(255)
+  amount        Decimal @db.Decimal(12, 2)
+  notes         String? @db.Text
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([visitId])
+
+}
