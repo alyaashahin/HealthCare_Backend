@@ -9,6 +9,7 @@ import { doctorScheduleRouter } from "./presentation/doctor-schedule/doctorSched
 import { bookingRouter } from "./presentation/booking/booking.routes";
 import { visitRouter } from "./presentation/visit/visit.routes";
 import { treatmentRouter } from "./presentation/treatment/treatment.routes";
+import { errorMiddleware } from "./presentation/middlewares/errorMiddleware";
 
 
 const app = express();
@@ -46,6 +47,7 @@ app.use("/api/bookings", bookingRouter);
 app.use("/api/visits", visitRouter);
 app.use("/api/treatments", treatmentRouter);
 
+app.use(errorMiddleware);
 app.use((_request, response) => {
   response.status(404).json({
     success: false,

@@ -1,8 +1,19 @@
-import type { IUserRepository } from "../../../domain/repositories/IUserRepository";
+import type {
+  IUserRepository,
+  UserRecord,
+} from "../../../domain/repositories/IUserRepository";
+
 import type { IHashService } from "../../../domain/services/IHashService";
 import type { ITokenService } from "../../../domain/services/ITokenService";
-import { AppError } from "../../../domain/errors/AppError";
-import type { LoginDto, LoginResponseDto } from "../dtos/LoginDto";
+
+import { UnauthorizedError } from "../../../domain/errors/UnauthorizedError";
+
+import type {
+  LoginDto,
+  LoginResponseDto,
+} from "../dtos/LoginDto";
+
+import { LoginValidator } from "../validators/LoginValidator";
 
 export class LoginUseCase {
   constructor(
@@ -12,20 +23,12 @@ export class LoginUseCase {
   ) {}
 
   async execute(input: LoginDto): Promise<LoginResponseDto> {
-    const email = input.email?.trim().toLowerCase();
-    const password = input.password;
-
-    if (!email || !password) {
-      throw new AppError(
-        "Email and password are required",
-        400,
-        "MISSING_CREDENTIALS"
-      );
-    }
+    const { email, password } = LoginValidator.validate(input);
 
     const user = await this.userRepository.findByEmail(email);
+
     if (!user) {
-      throw new AppError("Invalid email or password", 401, "INVALID_CREDENTIALS");
+      throw new UnauthorizedError("Invalid email or password");
     }
 
     const passwordMatches = await this.hashService.compare(
@@ -34,23 +37,29 @@ export class LoginUseCase {
     );
 
     if (!passwordMatches) {
-      throw new AppError("Invalid email or password", 401, "INVALID_CREDENTIALS");
+      throw new UnauthorizedError("Invalid password");
     }
 
     const token = await this.tokenService.sign({
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
     });
 
     return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      },
-      token
+      user: this.toSafeUser(user),
+      token,
+    };
+  }
+
+  private toSafeUser(
+    user: UserRecord
+  ): LoginResponseDto["user"] {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     };
   }
 }
