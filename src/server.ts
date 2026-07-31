@@ -7,6 +7,8 @@ import { authRouter } from "./presentation/auth/auth.routes";
 import { doctorProfileRouter } from "./presentation/doctor-profile/doctorProfile.routes";
 import { doctorScheduleRouter } from "./presentation/doctor-schedule/doctorSchedule.routes";
 import { bookingRouter } from "./presentation/booking/booking.routes";
+import { visitRouter } from "./presentation/visit/visit.routes";
+import { treatmentRouter } from "./presentation/treatment/treatment.routes";
 
 
 const app = express();
@@ -40,6 +42,9 @@ app.use(
   doctorScheduleRouter
 );
 app.use("/api/bookings", bookingRouter);
+
+app.use("/api/visits", visitRouter);
+app.use("/api/treatments", treatmentRouter);
 
 app.use((_request, response) => {
   response.status(404).json({
