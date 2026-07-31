@@ -1,9 +1,14 @@
 import type { CreateDoctorProfileDto } from "../dtos/CreateDoctorProfileDto";
 import type { DoctorProfileResponseDto } from "../dtos/DoctorProfileResponseDto";
 import type { IDoctorProfileRepository } from "../../../domain/repositories/IDoctorProfileRepository";
-import { ConflictError } from "../../../domain/errors/ConflictError";
-import { NotFoundError } from "../../../domain/errors/NotFoundError";
-import { ValidationError } from "../../../domain/errors/ValidationError";
+import type { TokenPayload } from "../../../domain/services/ITokenService";
+
+import { 
+  ConflictError,
+  NotFoundError,
+   ValidationError
+ } from "../../../domain/errors";
+
 import { DoctorProfileInputValidator } from "../services/DoctorProfileInputValidator";
 
 export class CreateDoctorProfileUseCase {
@@ -12,8 +17,15 @@ export class CreateDoctorProfileUseCase {
     private readonly validator: DoctorProfileInputValidator
   ) {}
 
-  async execute(input: CreateDoctorProfileDto): Promise<DoctorProfileResponseDto> {
-    const userId = this.validator.validateUserId(input.userId);
+  async execute(
+    input: CreateDoctorProfileDto,
+    currentUser: TokenPayload
+  ): Promise<DoctorProfileResponseDto> {
+    const userId =
+      currentUser.role === "ADMIN"
+        ? this.validator.validateUserId(input.userId)
+        : currentUser.sub;
+
     const user = await this.doctorProfileRepository.findUserById(userId);
 
     if (!user) {
@@ -27,7 +39,9 @@ export class CreateDoctorProfileUseCase {
       );
     }
 
-    const existingProfile = await this.doctorProfileRepository.findByUserId(userId);
+    const existingProfile =
+      await this.doctorProfileRepository.findByUserId(userId);
+
     if (existingProfile) {
       throw new ConflictError(
         "Doctor profile already exists",
@@ -37,13 +51,18 @@ export class CreateDoctorProfileUseCase {
 
     return this.doctorProfileRepository.create({
       userId,
-      specialization: this.validator.validateSpecialization(input.specialization),
+      specialization: this.validator.validateSpecialization(
+        input.specialization
+      ),
       bio: this.validator.validateOptionalText(input.bio, "Bio") ?? null,
       imageUrl: this.validator.validateImageUrl(input.imageUrl) ?? null,
-      phone: this.validator.validateOptionalText(input.phone, "Phone", 30) ?? null,
-      experienceYears: this.validator.validateExperienceYears(
-        input.experienceYears
-      ) ?? null
+      phone:
+        this.validator.validateOptionalText(input.phone, "Phone", 30) ??
+        null,
+      experienceYears:
+        this.validator.validateExperienceYears(
+          input.experienceYears
+        ) ?? null,
     });
   }
 }

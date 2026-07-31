@@ -6,11 +6,6 @@ import { tokenService } from "../../infrastructure/dependencies/authDependencies
 import { createAuthenticationMiddleware } from "../middlewares/authenticationMiddleware";
 import { authorizeRoles } from "../middlewares/authorizationMiddleware";
 
-import {
-  requireCreateProfileOwnerOrAdmin,
-  requireProfileOwnerOrAdmin
-} from "../middlewares/doctorProfileOwnershipMiddleware";
-
 import type {
   DoctorProfileUserIdParams,
   UpdateDoctorProfileBody
@@ -31,7 +26,6 @@ doctorProfileRouter.post<
   "/",
   authenticationMiddleware,
   authorizeRoles("DOCTOR", "ADMIN"),
-  requireCreateProfileOwnerOrAdmin,
   doctorProfileController.create
 );
 
@@ -39,7 +33,6 @@ doctorProfileRouter.get<DoctorProfileUserIdParams>(
   "/:userId",
   authenticationMiddleware,
   authorizeRoles("DOCTOR", "ADMIN"),
-  requireProfileOwnerOrAdmin,
   doctorProfileController.getByUserId
 );
 
@@ -51,6 +44,5 @@ doctorProfileRouter.patch<
   "/:userId",
   authenticationMiddleware,
   authorizeRoles("DOCTOR", "ADMIN"),
-  requireProfileOwnerOrAdmin,
   doctorProfileController.updateByUserId
 );

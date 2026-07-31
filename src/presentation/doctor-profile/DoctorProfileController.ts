@@ -13,6 +13,8 @@ import type { CreateDoctorProfileUseCase } from "../../application/doctor-profil
 import type { GetDoctorProfileUseCase } from "../../application/doctor-profile/use-cases/GetDoctorProfileUseCase";
 import type { UpdateDoctorProfileUseCase } from "../../application/doctor-profile/use-cases/UpdateDoctorProfileUseCase";
 
+import { ApiResponse } from "../../shared/response/ApiResponse";
+
 export interface DoctorProfileUserIdParams
   extends ParamsDictionary {
   userId: string;
@@ -42,13 +44,16 @@ export class DoctorProfileController {
     try {
       const result =
         await this.createDoctorProfileUseCase.execute(
-          request.body
+          request.body,
+          request.auth!
         );
 
-      response.status(201).json({
-        success: true,
-        data: result
-      });
+      response.status(201).json(
+        ApiResponse.success(
+          result,
+          "Doctor profile created successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
@@ -65,10 +70,12 @@ export class DoctorProfileController {
           request.params.userId
         );
 
-      response.status(200).json({
-        success: true,
-        data: result
-      });
+      response.status(200).json(
+        ApiResponse.success(
+          result,
+          "Doctor profile retrieved successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
@@ -85,15 +92,20 @@ export class DoctorProfileController {
   ): Promise<void> => {
     try {
       const result =
-        await this.updateDoctorProfileUseCase.execute({
-          userId: request.params.userId,
-          ...request.body
-        });
+        await this.updateDoctorProfileUseCase.execute(
+          {
+            userId: request.params.userId,
+            ...request.body
+          },
+          request.auth!
+        );
 
-      response.status(200).json({
-        success: true,
-        data: result
-      });
+      response.status(200).json(
+        ApiResponse.success(
+          result,
+          "Doctor profile updated successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
