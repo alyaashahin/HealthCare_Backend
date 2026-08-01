@@ -3,13 +3,9 @@ import { bookingController } from "../../infrastructure/dependencies/bookingDepe
 import { tokenService } from "../../infrastructure/dependencies/authDependencies";
 import { createAuthenticationMiddleware } from "../middlewares/authenticationMiddleware";
 import { authorizeRoles } from "../middlewares/authorizationMiddleware";
-import type {
-  BookingIdParams,
-  DoctorIdParams
-} from "./booking.types";
+import type { BookingIdParams } from "./booking.types";
 
 export const bookingRouter = Router();
-export const doctorAvailabilityRouter = Router();
 
 const authenticationMiddleware =
   createAuthenticationMiddleware(tokenService);
@@ -40,10 +36,4 @@ bookingRouter.delete<BookingIdParams>(
   authenticationMiddleware,
   authorizeRoles("PATIENT"),
   bookingController.cancel
-);
-
-doctorAvailabilityRouter.get<DoctorIdParams>(
-  "/:doctorId/available-slots",
-  authenticationMiddleware,
-  bookingController.getAvailableSlots
 );

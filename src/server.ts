@@ -8,9 +8,9 @@ import { doctorProfileRouter } from "./presentation/doctor-profile/doctorProfile
 import { doctorScheduleRouter } from "./presentation/doctor-schedule/doctorSchedule.routes";
 import { errorMiddleware } from "./presentation/middlewares/errorMiddleware";
 import {
-  bookingRouter,
-  doctorAvailabilityRouter
+  bookingRouter
 } from "./presentation/booking/booking.routes";
+import { publicDoctorRouter } from "./presentation/public-doctor/publicDoctor.routes";
 
 import {
 visitRouter,
@@ -51,7 +51,6 @@ app.use(
 );
 
 app.use("/api/bookings", bookingRouter);
-app.use("/api/doctors", doctorAvailabilityRouter);
 
 app.use("/api/visits", visitRouter);
 
@@ -60,6 +59,8 @@ app.use("/api/finance", financeVisitRouter);
 app.use("/api/patients", patientVisitRouter);
 
 app.use("/api/treatments", treatmentRouter);
+
+app.use("/api/doctors", publicDoctorRouter);
 
 app.use(errorMiddleware);
 app.use((_request, response) => {
