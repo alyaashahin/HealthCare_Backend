@@ -1,34 +1,20 @@
-import type { DayOfWeek } from "@prisma/client";
 import { ValidationError } from "../../../domain/errors/ValidationError";
-import type { CreateBookingDto } from "../dtos/CreateBookingDto";
 
 export interface ValidatedBookingInput {
-  patientId: string;
   doctorId: string;
   bookingDate: Date;
   startTime: Date;
   endTime: Date;
-  dayOfWeek: DayOfWeek;
 }
 
-const DAYS: DayOfWeek[] = [
-  "SUNDAY",
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY"
-];
-
 export class BookingInputValidator {
-  validateCreateInput(input: CreateBookingDto): ValidatedBookingInput {
-    const patientId = input.patientId?.trim();
+  validateCreateInput(input: {
+    doctorId: string;
+    bookingDate: string;
+    startTime: string;
+    endTime: string;
+  }): ValidatedBookingInput {
     const doctorId = input.doctorId?.trim();
-
-    if (!patientId) {
-      throw new ValidationError("Patient ID is required", "PATIENT_ID_REQUIRED");
-    }
 
     if (!doctorId) {
       throw new ValidationError("Doctor ID is required", "DOCTOR_ID_REQUIRED");
@@ -45,39 +31,41 @@ export class BookingInputValidator {
       );
     }
 
-    const appointmentDateTime = new Date(bookingDate);
-    appointmentDateTime.setUTCHours(
+    const bookingDateTime = new Date(bookingDate);
+    bookingDateTime.setUTCHours(
       startTime.getUTCHours(),
       startTime.getUTCMinutes(),
-      startTime.getUTCSeconds(),
+      0,
       0
     );
 
-    if (appointmentDateTime <= new Date()) {
+    if (bookingDateTime <= new Date()) {
       throw new ValidationError(
         "Booking cannot be in the past",
         "BOOKING_IN_THE_PAST"
       );
     }
 
-    return {
-      patientId,
-      doctorId,
-      bookingDate,
-      startTime,
-      endTime,
-      dayOfWeek: DAYS[bookingDate.getUTCDay()]
-    };
+    return { doctorId, bookingDate, startTime, endTime };
   }
 
-  validateId(id: string, fieldName: string): string {
-    const value = id?.trim();
-
-    if (!value) {
-      throw new ValidationError(`${fieldName} is required`, "ID_REQUIRED");
+  validateDateQuery(value: unknown): Date {
+    if (typeof value !== "string") {
+      throw new ValidationError(
+        "Date query parameter is required",
+        "DATE_QUERY_REQUIRED"
+      );
     }
 
-    return value;
+    return this.parseDate(value);
+  }
+
+  validateId(value: string, fieldName: string): string {
+    const normalizedValue = value?.trim();
+    if (!normalizedValue) {
+      throw new ValidationError(`${fieldName} is required`, "ID_REQUIRED");
+    }
+    return normalizedValue;
   }
 
   private parseDate(value: string): Date {
@@ -89,8 +77,16 @@ export class BookingInputValidator {
     }
 
     const date = new Date(`${value}T00:00:00.000Z`);
-
     if (Number.isNaN(date.getTime())) {
+      throw new ValidationError("Invalid booking date", "INVALID_BOOKING_DATE");
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    if (
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() + 1 !== month ||
+      date.getUTCDate() !== day
+    ) {
       throw new ValidationError("Invalid booking date", "INVALID_BOOKING_DATE");
     }
 
@@ -98,14 +94,13 @@ export class BookingInputValidator {
   }
 
   private parseTime(value: string, fieldName: string): Date {
-    if (!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value ?? "")) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value ?? "")) {
       throw new ValidationError(
-        `${fieldName} must use HH:mm or HH:mm:ss format`,
+        `${fieldName} must use HH:mm format`,
         "INVALID_TIME_FORMAT"
       );
     }
 
-    const normalizedTime = value.length === 5 ? `${value}:00` : value;
-    return new Date(`1970-01-01T${normalizedTime}.000Z`);
+    return new Date(`1970-01-01T${value}:00.000Z`);
   }
 }

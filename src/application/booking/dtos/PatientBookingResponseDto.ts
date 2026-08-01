@@ -1,6 +1,6 @@
 import type { BookingStatusValue } from "../../../domain/repositories/IBookingRepository";
 
-export interface BookingResponseDto {
+export interface PatientBookingResponseDto {
   id: string;
   patientId: string;
   doctorId: string;
@@ -9,4 +9,10 @@ export interface BookingResponseDto {
   endTime: string;
   status: BookingStatusValue;
   createdAt: Date;
+  doctor: {
+    id: string;
+    name: string;
+    specialization: string | null;
+    imageUrl: string | null;
+  };
 }

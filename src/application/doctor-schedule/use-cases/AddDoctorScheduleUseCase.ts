@@ -1,5 +1,5 @@
 import type { AddDoctorScheduleDto } from "../dtos/AddDoctorScheduleDto";
-import type { AuthenticatedActorDto } from "../dtos/AuthenticatedActorDto";
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";
 import type { DoctorScheduleResponseDto } from "../dtos/DoctorScheduleResponseDto";
 
 import type {

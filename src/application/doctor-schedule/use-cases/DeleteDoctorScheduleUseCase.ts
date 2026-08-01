@@ -1,4 +1,4 @@
-import type { AuthenticatedActorDto } from "../dtos/AuthenticatedActorDto";
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";
 import type { IDoctorScheduleRepository } from "../../../domain/repositories/IDoctorScheduleRepository";
 
 import { NotFoundError } from "../../../domain/errors/NotFoundError";

@@ -6,11 +6,13 @@ import cors from "cors";
 import { authRouter } from "./presentation/auth/auth.routes";
 import { doctorProfileRouter } from "./presentation/doctor-profile/doctorProfile.routes";
 import { doctorScheduleRouter } from "./presentation/doctor-schedule/doctorSchedule.routes";
-import { bookingRouter } from "./presentation/booking/booking.routes";
 import { visitRouter } from "./presentation/visit/visit.routes";
 import { treatmentRouter } from "./presentation/treatment/treatment.routes";
 import { errorMiddleware } from "./presentation/middlewares/errorMiddleware";
-
+import {
+  bookingRouter,
+  doctorAvailabilityRouter
+} from "./presentation/booking/booking.routes";
 
 const app = express();
 
@@ -42,7 +44,9 @@ app.use(
   "/api/doctor-schedules",
   doctorScheduleRouter
 );
+
 app.use("/api/bookings", bookingRouter);
+app.use("/api/doctors", doctorAvailabilityRouter);
 
 app.use("/api/visits", visitRouter);
 app.use("/api/treatments", treatmentRouter);

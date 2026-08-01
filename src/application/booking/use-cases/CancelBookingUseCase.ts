@@ -1,8 +1,11 @@
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";
 import type { IBookingRepository } from "../../../domain/repositories/IBookingRepository";
 import { ConflictError } from "../../../domain/errors/ConflictError";
+import { ForbiddenError } from "../../../domain/errors/ForbiddenError";
 import { NotFoundError } from "../../../domain/errors/NotFoundError";
 import type { BookingResponseDto } from "../dtos/BookingResponseDto";
 import { BookingInputValidator } from "../services/BookingInputValidator";
+import { BookingResponseMapper } from "../services/BookingResponseMapper";
 
 export class CancelBookingUseCase {
   constructor(
@@ -10,7 +13,10 @@ export class CancelBookingUseCase {
     private readonly validator: BookingInputValidator
   ) {}
 
-  async execute(bookingIdInput: string): Promise<BookingResponseDto> {
+  async execute(
+    actor: AuthenticatedActorDto,
+    bookingIdInput: string
+  ): Promise<BookingResponseDto> {
     const bookingId = this.validator.validateId(bookingIdInput, "Booking ID");
     const booking = await this.bookingRepository.findById(bookingId);
 
@@ -18,20 +24,21 @@ export class CancelBookingUseCase {
       throw new NotFoundError("Booking not found", "BOOKING_NOT_FOUND");
     }
 
-    if (booking.status === "COMPLETED") {
-      throw new ConflictError(
-        "A completed booking cannot be cancelled",
-        "COMPLETED_BOOKING_CANNOT_BE_CANCELLED"
+    if (actor.role !== "PATIENT" || actor.userId !== booking.patientId) {
+      throw new ForbiddenError(
+        "Patients can only cancel their own bookings",
+        "BOOKING_CANCEL_ACCESS_DENIED"
       );
     }
 
-    if (booking.status === "CANCELLED") {
+    if (booking.status !== "BOOKED") {
       throw new ConflictError(
-        "Booking is already cancelled",
-        "BOOKING_ALREADY_CANCELLED"
+        "Only a BOOKED appointment can be cancelled",
+        "BOOKING_CANNOT_BE_CANCELLED"
       );
     }
 
-    return this.bookingRepository.updateStatus(bookingId, "CANCELLED");
+    const cancelledBooking = await this.bookingRepository.cancelById(bookingId);
+    return BookingResponseMapper.toDto(cancelledBooking);
   }
 }

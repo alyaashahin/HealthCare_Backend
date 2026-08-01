@@ -8,6 +8,6 @@ export interface DoctorIdParams extends ParamsDictionary {
   doctorId: string;
 }
 
-export interface PatientIdParams extends ParamsDictionary {
-  patientId: string;
+export interface AvailableSlotsQuery {
+  date?: string;
 }

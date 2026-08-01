@@ -1,18 +1,15 @@
 import { Router } from "express";
-
 import { bookingController } from "../../infrastructure/dependencies/bookingDependencies";
 import { tokenService } from "../../infrastructure/dependencies/authDependencies";
-
 import { createAuthenticationMiddleware } from "../middlewares/authenticationMiddleware";
 import { authorizeRoles } from "../middlewares/authorizationMiddleware";
-
 import type {
   BookingIdParams,
-  DoctorIdParams,
-  PatientIdParams
+  DoctorIdParams
 } from "./booking.types";
 
 export const bookingRouter = Router();
+export const doctorAvailabilityRouter = Router();
 
 const authenticationMiddleware =
   createAuthenticationMiddleware(tokenService);
@@ -20,34 +17,33 @@ const authenticationMiddleware =
 bookingRouter.post(
   "/",
   authenticationMiddleware,
-  authorizeRoles("PATIENT", "ADMIN"),
+  authorizeRoles("PATIENT"),
   bookingController.create
 );
 
-bookingRouter.patch<BookingIdParams>(
-  "/:id/cancel",
+bookingRouter.get(
+  "/my",
   authenticationMiddleware,
-  authorizeRoles("PATIENT", "ADMIN"),
-  bookingController.cancel
+  authorizeRoles("PATIENT"),
+  bookingController.getMyBookings
 );
 
-bookingRouter.patch<BookingIdParams>(
-  "/:id/complete",
+bookingRouter.get(
+  "/doctor/my",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
-  bookingController.complete
-);
-
-bookingRouter.get<DoctorIdParams>(
-  "/doctor/:doctorId",
-  authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
+  authorizeRoles("DOCTOR"),
   bookingController.getDoctorBookings
 );
 
-bookingRouter.get<PatientIdParams>(
-  "/patient/:patientId",
+bookingRouter.delete<BookingIdParams>(
+  "/:id",
   authenticationMiddleware,
-  authorizeRoles("PATIENT", "ADMIN"),
-  bookingController.getPatientBookings
+  authorizeRoles("PATIENT"),
+  bookingController.cancel
+);
+
+doctorAvailabilityRouter.get<DoctorIdParams>(
+  "/:doctorId/available-slots",
+  authenticationMiddleware,
+  bookingController.getAvailableSlots
 );

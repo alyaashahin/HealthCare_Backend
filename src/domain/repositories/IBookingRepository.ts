@@ -1,10 +1,59 @@
-import type {
-  Booking,
-  BookingStatus,
-  DayOfWeek,
-  DoctorSchedule,
-  User
-} from "@prisma/client";
+import type { UserRecord } from "./IUserRepository";
+
+export type BookingStatusValue =
+  | "BOOKED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export type DayOfWeekValue =
+  | "MONDAY"
+  | "TUESDAY"
+  | "WEDNESDAY"
+  | "THURSDAY"
+  | "FRIDAY"
+  | "SATURDAY"
+  | "SUNDAY";
+
+export interface BookingRecord {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  bookingDate: Date;
+  startTime: Date;
+  endTime: Date;
+  status: BookingStatusValue;
+  createdAt: Date;
+}
+
+export interface PatientBookingRecord extends BookingRecord {
+  doctor: {
+    id: string;
+    name: string;
+    doctorProfile: {
+      specialization: string;
+      imageUrl: string | null;
+    } | null;
+  };
+}
+
+export interface DoctorBookingRecord extends BookingRecord {
+  patient: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export interface DoctorScheduleRecord {
+  id: string;
+  doctorId: string;
+  dayOfWeek: DayOfWeekValue;
+  startTime: Date;
+  endTime: Date;
+  durationInMinutes: number;
+  createdAt: Date;
+}
 
 export interface CreateBookingData {
   patientId: string;
@@ -12,41 +61,30 @@ export interface CreateBookingData {
   bookingDate: Date;
   startTime: Date;
   endTime: Date;
-  status: BookingStatus;
+  status: "BOOKED";
 }
 
 export interface IBookingRepository {
-  findUserById(id: string): Promise<User | null>;
-
-  findById(id: string): Promise<Booking | null>;
+  findUserById(userId: string): Promise<UserRecord | null>;
+  findById(bookingId: string): Promise<BookingRecord | null>;
 
   findDoctorSchedules(
     doctorId: string,
-    dayOfWeek: DayOfWeek
-  ): Promise<DoctorSchedule[]>;
+    dayOfWeek: DayOfWeekValue
+  ): Promise<DoctorScheduleRecord[]>;
 
-  findDoctorConflictingBooking(
+  findDoctorBookingsByDate(
     doctorId: string,
-    bookingDate: Date,
-    startTime: Date,
-    endTime: Date
-  ): Promise<Booking | null>;
+    bookingDate: Date
+  ): Promise<BookingRecord[]>;
 
-  findPatientConflictingBooking(
+  findPatientBookingsByDate(
     patientId: string,
-    bookingDate: Date,
-    startTime: Date,
-    endTime: Date
-  ): Promise<Booking | null>;
+    bookingDate: Date
+  ): Promise<BookingRecord[]>;
 
-  create(data: CreateBookingData): Promise<Booking>;
-
-  updateStatus(
-    id: string,
-    status: BookingStatus
-  ): Promise<Booking>;
-
-  findByDoctorId(doctorId: string): Promise<Booking[]>;
-
-  findByPatientId(patientId: string): Promise<Booking[]>;
+  create(data: CreateBookingData): Promise<BookingRecord>;
+  cancelById(bookingId: string): Promise<BookingRecord>;
+  findByDoctorId(doctorId: string): Promise<DoctorBookingRecord[]>;
+  findByPatientId(patientId: string): Promise<PatientBookingRecord[]>;
 }
