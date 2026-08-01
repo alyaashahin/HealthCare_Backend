@@ -1,15 +1,2 @@
-import { VisitInputValidator } from "../../application/visit/services/VisitInputValidator";
-import { CreateVisitUseCase } from "../../application/visit/use-cases/CreateVisitUseCase";
-import { GetVisitUseCase } from "../../application/visit/use-cases/GetVisitUseCase";
-import { UpdateVisitUseCase } from "../../application/visit/use-cases/UpdateVisitUseCase";
-import { VisitController } from "../../presentation/visit/VisitController";
-import { PrismaVisitRepository } from "../repositories/PrismaVisitRepository";
-
-export const visitRepository = new PrismaVisitRepository();
-const visitValidator = new VisitInputValidator();
-
-export const visitController = new VisitController(
-  new CreateVisitUseCase(visitRepository, visitValidator),
-  new GetVisitUseCase(visitRepository, visitValidator),
-  new UpdateVisitUseCase(visitRepository, visitValidator)
-);
+import { VisitValidator } from "../../application/visit/services/VisitValidator"; import { TreatmentValidator } from "../../application/treatment/services/TreatmentValidator"; import { StartVisitUseCase } from "../../application/visit/use-cases/StartVisitUseCase"; import { CompleteVisitUseCase } from "../../application/visit/use-cases/CompleteVisitUseCase"; import { GetMyDoctorVisitsUseCase } from "../../application/visit/use-cases/GetMyDoctorVisitsUseCase"; import { GetMyPatientVisitsUseCase } from "../../application/visit/use-cases/GetMyPatientVisitsUseCase"; import { SearchFinanceVisitsUseCase } from "../../application/finance/use-cases/SearchFinanceVisitsUseCase"; import { AddTreatmentUseCase } from "../../application/treatment/use-cases/AddTreatmentUseCase"; import { GetTreatmentsUseCase } from "../../application/treatment/use-cases/GetTreatmentsUseCase"; import { UpdateTreatmentUseCase } from "../../application/treatment/use-cases/UpdateTreatmentUseCase"; import { DeleteTreatmentUseCase } from "../../application/treatment/use-cases/DeleteTreatmentUseCase"; import { VisitController } from "../../presentation/visit/VisitController"; import { PrismaVisitRepository } from "../repositories/PrismaVisitRepository";
+const r = new PrismaVisitRepository(), v = new VisitValidator(), t = new TreatmentValidator(); export const visitController = new VisitController(new StartVisitUseCase(r, v), new CompleteVisitUseCase(r, v), new GetMyDoctorVisitsUseCase(r), new GetMyPatientVisitsUseCase(r), new SearchFinanceVisitsUseCase(r), new AddTreatmentUseCase(r, t), new GetTreatmentsUseCase(r, t), new UpdateTreatmentUseCase(r, t), new DeleteTreatmentUseCase(r, t));

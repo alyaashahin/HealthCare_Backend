@@ -1,23 +1,2 @@
-import type { IVisitRepository } from "../../../domain/repositories/IVisitRepository";
-import { NotFoundError } from "../../../domain/errors/NotFoundError";
-import { TreatmentInputValidator } from "../services/TreatmentInputValidator";
-
-export class DeleteTreatmentUseCase {
-  constructor(
-    private readonly visitRepository: IVisitRepository,
-    private readonly validator: TreatmentInputValidator
-  ) {}
-
-  async execute(treatmentIdInput: string): Promise<void> {
-    const treatmentId = this.validator.validateId(
-      treatmentIdInput,
-      "Treatment ID"
-    );
-
-    if (!(await this.visitRepository.findTreatmentById(treatmentId))) {
-      throw new NotFoundError("Treatment not found", "TREATMENT_NOT_FOUND");
-    }
-
-    await this.visitRepository.deleteTreatmentAndSyncTotal(treatmentId);
-  }
-}
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";import type { IVisitRepository } from "../../../domain/repositories/IVisitRepository";import { ForbiddenError } from "../../../domain/errors/ForbiddenError";import { NotFoundError } from "../../../domain/errors/NotFoundError";import { ConflictError } from "../../../domain/errors/ConflictError";import { TreatmentValidator } from "../services/TreatmentValidator";
+export class DeleteTreatmentUseCase {constructor(private r:IVisitRepository,private v:TreatmentValidator){}async execute(actor:AuthenticatedActorDto,idInput:string){const id=this.v.id(idInput,"Treatment ID"),old=await this.r.findTreatmentById(id);if(!old)throw new NotFoundError("Treatment not found","TREATMENT_NOT_FOUND");const visit=await this.r.findVisitById(old.visitId);if(!visit)throw new NotFoundError("Visit not found","VISIT_NOT_FOUND");if(actor.role!=="DOCTOR"||actor.userId!==visit.booking.doctorId)throw new ForbiddenError("Treatment access denied","TREATMENT_ACCESS_DENIED");if(visit.booking.status!=="IN_PROGRESS"||visit.completedAt)throw new ConflictError("Visit is not active","VISIT_NOT_ACTIVE");await this.r.deleteTreatment(id);const total=await this.r.calculateVisitTotal(old.visitId);await this.r.updateVisitTotal(old.visitId,total);}}

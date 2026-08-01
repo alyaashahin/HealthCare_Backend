@@ -1,27 +1,5 @@
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";
 import type { IVisitRepository } from "../../../domain/repositories/IVisitRepository";
-import { NotFoundError } from "../../../domain/errors/NotFoundError";
-import type { AddTreatmentDto } from "../dtos/AddTreatmentDto";
-import type { TreatmentResponseDto } from "../dtos/TreatmentResponseDto";
-import { TreatmentInputValidator } from "../services/TreatmentInputValidator";
-
-export class AddTreatmentUseCase {
-  constructor(
-    private readonly visitRepository: IVisitRepository,
-    private readonly validator: TreatmentInputValidator
-  ) {}
-
-  async execute(input: AddTreatmentDto): Promise<TreatmentResponseDto> {
-    const visitId = this.validator.validateId(input.visitId, "Visit ID");
-
-    if (!(await this.visitRepository.findVisitById(visitId))) {
-      throw new NotFoundError("Visit not found", "VISIT_NOT_FOUND");
-    }
-
-    return this.visitRepository.createTreatmentAndSyncTotal({
-      visitId,
-      treatmentName: this.validator.validateName(input.treatmentName),
-      amount: this.validator.validateAmount(input.amount),
-      notes: this.validator.validateOptionalNotes(input.notes) ?? null
-    });
-  }
-}
+import { ForbiddenError } from "../../../domain/errors/ForbiddenError";import { NotFoundError } from "../../../domain/errors/NotFoundError";import { ConflictError } from "../../../domain/errors/ConflictError";
+import type { AddTreatmentDto } from "../dtos/TreatmentDto";import { TreatmentValidator } from "../services/TreatmentValidator";
+export class AddTreatmentUseCase {constructor(private r:IVisitRepository,private v:TreatmentValidator){}async execute(actor:AuthenticatedActorDto,visitIdInput:string,input:AddTreatmentDto){const visitId=this.v.id(visitIdInput,"Visit ID"),visit=await this.r.findVisitById(visitId);if(!visit)throw new NotFoundError("Visit not found","VISIT_NOT_FOUND");if(actor.role!=="DOCTOR"||actor.userId!==visit.booking.doctorId)throw new ForbiddenError("Only assigned doctor can add treatments","TREATMENT_ACCESS_DENIED");if(visit.booking.status!=="IN_PROGRESS"||visit.completedAt)throw new ConflictError("Treatments can only be changed during an active visit","VISIT_NOT_ACTIVE");const t=await this.r.createTreatment({visitId,treatmentName:this.v.name(input.treatmentName),amount:this.v.amount(input.amount),notes:this.v.notes(input.notes)??null});const total=await this.r.calculateVisitTotal(visitId);await this.r.updateVisitTotal(visitId,total);return t;}}

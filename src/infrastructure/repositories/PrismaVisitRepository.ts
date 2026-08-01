@@ -1,112 +1,317 @@
+import { Prisma } from "@prisma/client";
 import type {
-  Prisma,
-  PrismaClient
+  Booking,
+  Treatment,
+  Visit
 } from "@prisma/client";
+import type {
+  BookingRecord,
+  BookingStatusValue
+} from "../../domain/repositories/IBookingRepository";
 import type {
   CreateTreatmentData,
   CreateVisitData,
+  FinanceVisitSearchFilters,
   IVisitRepository,
+  TreatmentRecord,
   UpdateTreatmentData,
-  UpdateVisitData
+  VisitDetailsRecord,
+  VisitRecord
 } from "../../domain/repositories/IVisitRepository";
 import { prisma } from "../database/prisma";
 
+const includeDetails = {
+  booking: {
+    include: {
+      doctor: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      patient: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      }
+    }
+  },
+  treatments: true
+} as const;
+
+type VisitDetailsPrismaResult = Prisma.VisitGetPayload<{
+  include: typeof includeDetails;
+}>;
+
 export class PrismaVisitRepository implements IVisitRepository {
-  findBookingById(bookingId: string) {
-    return prisma.booking.findUnique({ where: { id: bookingId } });
+  async findBookingById(id: string): Promise<BookingRecord | null> {
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    return booking ? this.toBookingRecord(booking) : null;
   }
 
-  findVisitById(visitId: string) {
-    return prisma.visit.findUnique({ where: { id: visitId } });
+  async findVisitById(id: string): Promise<VisitDetailsRecord | null> {
+    const visit = await prisma.visit.findUnique({
+      where: { id },
+      include: includeDetails
+    });
+
+    return visit ? this.toVisitDetailsRecord(visit) : null;
   }
 
-  findVisitByBookingId(bookingId: string) {
-    return prisma.visit.findUnique({ where: { bookingId } });
+  async findVisitByBookingId(
+    bookingId: string
+  ): Promise<VisitRecord | null> {
+    const visit = await prisma.visit.findUnique({ where: { bookingId } });
+    return visit ? this.toVisitRecord(visit) : null;
   }
 
-  createVisit(data: CreateVisitData) {
-    return prisma.visit.create({
-      data: {
-        ...data,
-        totalAmount: 0
+  async findInProgressVisitByDoctorId(
+    doctorId: string
+  ): Promise<VisitRecord | null> {
+    const visit = await prisma.visit.findFirst({
+      where: {
+        completedAt: null,
+        booking: {
+          doctorId,
+          status: "IN_PROGRESS"
+        }
       }
     });
+
+    return visit ? this.toVisitRecord(visit) : null;
   }
 
-  updateVisit(visitId: string, data: UpdateVisitData) {
-    return prisma.visit.update({
-      where: { id: visitId },
-      data
+  async startVisit(data: CreateVisitData): Promise<VisitRecord> {
+    const visit = await prisma.$transaction(async (transaction) => {
+      const createdVisit = await transaction.visit.create({
+        data: {
+          bookingId: data.bookingId,
+          medicalNotes: data.medicalNotes,
+          diagnosis: data.diagnosis,
+          totalAmount: 0
+        }
+      });
+
+      await transaction.booking.update({
+        where: { id: data.bookingId },
+        data: { status: "IN_PROGRESS" }
+      });
+
+      return createdVisit;
     });
+
+    return this.toVisitRecord(visit);
   }
 
-  findTreatmentById(treatmentId: string) {
-    return prisma.treatment.findUnique({ where: { id: treatmentId } });
+  async completeVisit(
+    visitId: string,
+    bookingId: string
+  ): Promise<VisitRecord> {
+    const visit = await prisma.$transaction(async (transaction) => {
+      const completedVisit = await transaction.visit.update({
+        where: { id: visitId },
+        data: { completedAt: new Date() }
+      });
+
+      await transaction.booking.update({
+        where: { id: bookingId },
+        data: { status: "COMPLETED" }
+      });
+
+      return completedVisit;
+    });
+
+    return this.toVisitRecord(visit);
   }
 
-  findTreatmentsByVisitId(visitId: string) {
-    return prisma.treatment.findMany({
+  async updateBookingStatus(
+    id: string,
+    status: BookingStatusValue
+  ): Promise<BookingRecord> {
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { status }
+    });
+
+    return this.toBookingRecord(booking);
+  }
+
+  async findTreatmentById(id: string): Promise<TreatmentRecord | null> {
+    const treatment = await prisma.treatment.findUnique({ where: { id } });
+    return treatment ? this.toTreatmentRecord(treatment) : null;
+  }
+
+  async findTreatmentsByVisitId(
+    visitId: string
+  ): Promise<TreatmentRecord[]> {
+    const treatments = await prisma.treatment.findMany({
       where: { visitId },
       orderBy: { treatmentName: "asc" }
     });
-  }
 
-createTreatmentAndSyncTotal(data: CreateTreatmentData) {
-  return prisma.$transaction(async (transaction) => {
-    const treatment = await transaction.treatment.create({
-      data: {
-        visitId: data.visitId,
-        treatmentName: data.treatmentName,
-        amount: data.amount,
-        notes: data.notes
-      }
-    });
-
-    await this.syncVisitTotal(
-      transaction,
-      data.visitId
+    return treatments.map((treatment) =>
+      this.toTreatmentRecord(treatment)
     );
+  }
 
-    return treatment;
-  });
-}
+  async createTreatment(
+    data: CreateTreatmentData
+  ): Promise<TreatmentRecord> {
+    const treatment = await prisma.treatment.create({ data });
+    return this.toTreatmentRecord(treatment);
+  }
 
-
-  updateTreatmentAndSyncTotal(
-    treatmentId: string,
+  async updateTreatment(
+    id: string,
     data: UpdateTreatmentData
-  ) {
-    return prisma.$transaction(async (transaction) => {
-      const treatment = await transaction.treatment.update({
-        where: { id: treatmentId },
-        data
-      });
-      await this.syncVisitTotal(transaction, treatment.visitId);
-      return treatment;
+  ): Promise<TreatmentRecord> {
+    const treatment = await prisma.treatment.update({
+      where: { id },
+      data
     });
+
+    return this.toTreatmentRecord(treatment);
   }
 
-  async deleteTreatmentAndSyncTotal(treatmentId: string): Promise<void> {
-    await prisma.$transaction(async (transaction) => {
-      const treatment = await transaction.treatment.delete({
-        where: { id: treatmentId }
-      });
-      await this.syncVisitTotal(transaction, treatment.visitId);
-    });
+  async deleteTreatment(id: string): Promise<void> {
+    await prisma.treatment.delete({ where: { id } });
   }
 
-  private async syncVisitTotal(
-    transaction: Prisma.TransactionClient,
-    visitId: string
-  ): Promise<void> {
-    const total = await transaction.treatment.aggregate({
+  async calculateVisitTotal(visitId: string): Promise<Prisma.Decimal> {
+    const result = await prisma.treatment.aggregate({
       where: { visitId },
       _sum: { amount: true }
     });
 
-    await transaction.visit.update({
-      where: { id: visitId },
-      data: { totalAmount: total._sum.amount ?? 0 }
+    return result._sum.amount ?? new Prisma.Decimal(0);
+  }
+
+  async updateVisitTotal(
+    id: string,
+    total: Prisma.Decimal
+  ): Promise<VisitRecord> {
+    const visit = await prisma.visit.update({
+      where: { id },
+      data: { totalAmount: total }
     });
+
+    return this.toVisitRecord(visit);
+  }
+
+  async findVisitsByDoctorId(
+    doctorId: string
+  ): Promise<VisitDetailsRecord[]> {
+    const visits = await prisma.visit.findMany({
+      where: {
+        booking: { doctorId }
+      },
+      include: includeDetails,
+      orderBy: { createdAt: "desc" }
+    });
+
+    return visits.map((visit) => this.toVisitDetailsRecord(visit));
+  }
+
+  async findVisitsByPatientId(
+    patientId: string
+  ): Promise<VisitDetailsRecord[]> {
+    const visits = await prisma.visit.findMany({
+      where: {
+        booking: { patientId }
+      },
+      include: includeDetails,
+      orderBy: { createdAt: "desc" }
+    });
+
+    return visits.map((visit) => this.toVisitDetailsRecord(visit));
+  }
+
+  async searchVisits(
+    filters: FinanceVisitSearchFilters
+  ): Promise<VisitDetailsRecord[]> {
+    const visits = await prisma.visit.findMany({
+      where: {
+        ...(filters.visitId ? { id: filters.visitId } : {}),
+        booking: {
+          ...(filters.doctorName
+            ? {
+                doctor: {
+                  name: {
+                    contains: filters.doctorName,
+                    mode: "insensitive"
+                  }
+                }
+              }
+            : {}),
+          ...(filters.patientName
+            ? {
+                patient: {
+                  name: {
+                    contains: filters.patientName,
+                    mode: "insensitive"
+                  }
+                }
+              }
+            : {})
+        }
+      },
+      include: includeDetails,
+      orderBy: { createdAt: "desc" }
+    });
+
+    return visits.map((visit) => this.toVisitDetailsRecord(visit));
+  }
+
+  private toBookingRecord(booking: Booking): BookingRecord {
+    return {
+      id: booking.id,
+      patientId: booking.patientId,
+      doctorId: booking.doctorId,
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      status: booking.status,
+      createdAt: booking.createdAt
+    };
+  }
+
+  private toVisitRecord(visit: Visit): VisitRecord {
+    return {
+      id: visit.id,
+      bookingId: visit.bookingId,
+      medicalNotes: visit.medicalNotes,
+      diagnosis: visit.diagnosis,
+      totalAmount: visit.totalAmount,
+      completedAt: visit.completedAt,
+      createdAt: visit.createdAt
+    };
+  }
+
+  private toTreatmentRecord(treatment: Treatment): TreatmentRecord {
+    return {
+      id: treatment.id,
+      visitId: treatment.visitId,
+      treatmentName: treatment.treatmentName,
+      amount: treatment.amount,
+      notes: treatment.notes
+    };
+  }
+
+  private toVisitDetailsRecord(
+    visit: VisitDetailsPrismaResult
+  ): VisitDetailsRecord {
+    return {
+      ...this.toVisitRecord(visit),
+      booking: {
+        ...this.toBookingRecord(visit.booking),
+        doctor: visit.booking.doctor,
+        patient: visit.booking.patient
+      },
+      treatments: visit.treatments.map((treatment) =>
+        this.toTreatmentRecord(treatment)
+      )
+    };
   }
 }

@@ -3,28 +3,85 @@ import { visitController } from "../../infrastructure/dependencies/visitDependen
 import { tokenService } from "../../infrastructure/dependencies/authDependencies";
 import { createAuthenticationMiddleware } from "../middlewares/authenticationMiddleware";
 import { authorizeRoles } from "../middlewares/authorizationMiddleware";
-import type { VisitIdParams } from "./visit.types";
+import type {
+  BookingIdParams,
+  EmptyParams,
+  FinanceFilters,
+  TreatmentIdParams,
+  VisitIdParams
+} from "./visit.types";
 
 export const visitRouter = Router();
-const authenticationMiddleware = createAuthenticationMiddleware(tokenService);
+export const financeVisitRouter = Router();
+export const patientVisitRouter = Router();
+export const treatmentRouter = Router();
 
-visitRouter.post(
-  "/",
+const authenticationMiddleware =
+  createAuthenticationMiddleware(tokenService);
+
+visitRouter.post<BookingIdParams>(
+  "/start/:bookingId",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
-  visitController.create
+  authorizeRoles("DOCTOR"),
+  visitController.start
+);
+
+visitRouter.post<VisitIdParams>(
+  "/:visitId/complete",
+  authenticationMiddleware,
+  authorizeRoles("DOCTOR"),
+  visitController.complete
+);
+
+visitRouter.get(
+  "/my",
+  authenticationMiddleware,
+  authorizeRoles("DOCTOR"),
+  visitController.myDoctor
+);
+
+visitRouter.post<VisitIdParams>(
+  "/:visitId/treatments",
+  authenticationMiddleware,
+  authorizeRoles("DOCTOR"),
+  visitController.addTreatment
 );
 
 visitRouter.get<VisitIdParams>(
-  "/:id",
+  "/:visitId/treatments",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN", "FINANCE", "PATIENT"),
-  visitController.getById
+  visitController.getTreatments
 );
 
-visitRouter.patch<VisitIdParams>(
+treatmentRouter.patch<TreatmentIdParams>(
   "/:id",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
-  visitController.updateById
+  authorizeRoles("DOCTOR"),
+  visitController.updateTreatment
+);
+
+treatmentRouter.delete<TreatmentIdParams>(
+  "/:id",
+  authenticationMiddleware,
+  authorizeRoles("DOCTOR"),
+  visitController.deleteTreatment
+);
+
+patientVisitRouter.get(
+  "/me/visits",
+  authenticationMiddleware,
+  authorizeRoles("PATIENT"),
+  visitController.myPatient
+);
+
+financeVisitRouter.get<
+  EmptyParams,
+  unknown,
+  unknown,
+  FinanceFilters
+>(
+  "/visits",
+  authenticationMiddleware,
+  authorizeRoles("FINANCE"),
+  visitController.finance
 );
