@@ -41,7 +41,7 @@ app.get("/health", (_request, response) => {
 app.use("/api/auth", authRouter);
 
 app.use(
-  "/api/doctor-profiles",
+  "/api/doctor-profile",
   doctorProfileRouter
 );
 

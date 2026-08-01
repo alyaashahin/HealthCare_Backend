@@ -1,12 +1,8 @@
-export type DoctorProfileUserRole =
-  | "PATIENT"
-  | "DOCTOR"
-  | "FINANCE"
-  | "ADMIN";
+import type { UserRoleValue } from "./IUserRepository";
 
 export interface DoctorProfileUserRecord {
   id: string;
-  role: DoctorProfileUserRole;
+  role: UserRoleValue;
 }
 
 export interface DoctorProfileRecord {

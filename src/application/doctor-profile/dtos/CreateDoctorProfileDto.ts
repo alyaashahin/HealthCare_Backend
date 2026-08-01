@@ -1,5 +1,4 @@
 export interface CreateDoctorProfileDto {
-  userId?: string;
   specialization: string;
   bio?: string | null;
   imageUrl?: string | null;

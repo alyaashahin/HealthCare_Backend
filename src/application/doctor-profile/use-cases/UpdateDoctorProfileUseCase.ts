@@ -1,54 +1,55 @@
-import type { DoctorProfileResponseDto } from "../dtos/DoctorProfileResponseDto";
-import type { UpdateDoctorProfileDto } from "../dtos/UpdateDoctorProfileDto";
+import type { AuthenticatedActorDto } from "../../shared/dtos/AuthenticatedActorDto";
 import type {
   IDoctorProfileRepository,
   UpdateDoctorProfileData
 } from "../../../domain/repositories/IDoctorProfileRepository";
-import type { TokenPayload } from "../../../domain/services/ITokenService";
-
+import { ForbiddenError } from "../../../domain/errors/ForbiddenError";
 import { NotFoundError } from "../../../domain/errors/NotFoundError";
 import { ValidationError } from "../../../domain/errors/ValidationError";
-
+import type { DoctorProfileResponseDto } from "../dtos/DoctorProfileResponseDto";
+import type { UpdateDoctorProfileDto } from "../dtos/UpdateDoctorProfileDto";
 import { DoctorProfileInputValidator } from "../services/DoctorProfileInputValidator";
+import { DoctorProfileResponseMapper } from "../services/DoctorProfileResponseMapper";
 
 export class UpdateDoctorProfileUseCase {
   constructor(
-    private readonly doctorProfileRepository: IDoctorProfileRepository,
+    private readonly repository: IDoctorProfileRepository,
     private readonly validator: DoctorProfileInputValidator
   ) {}
 
   async execute(
-    input: UpdateDoctorProfileDto,
-    currentUser: TokenPayload
+    actor: AuthenticatedActorDto,
+    input: UpdateDoctorProfileDto
   ): Promise<DoctorProfileResponseDto> {
-    const userId =
-      currentUser.role === "ADMIN"
-        ? this.validator.validateUserId(input.userId)
-        : currentUser.sub;
+    if (actor.role !== "DOCTOR") {
+      throw new ForbiddenError(
+        "Only doctors can update doctor profiles",
+        "DOCTOR_ROLE_REQUIRED"
+      );
+    }
 
-    const existingProfile =
-      await this.doctorProfileRepository.findByUserId(userId);
-
-    if (!existingProfile) {
+    if (!(await this.repository.findByUserId(actor.userId))) {
       throw new NotFoundError(
         "Doctor profile not found",
         "DOCTOR_PROFILE_NOT_FOUND"
       );
     }
 
-    const updateData = this.buildUpdateData(input);
+    const data = this.buildUpdateData(input);
 
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(data).length === 0) {
       throw new ValidationError(
         "At least one profile field must be provided",
         "EMPTY_PROFILE_UPDATE"
       );
     }
 
-    return this.doctorProfileRepository.updateByUserId(
-      userId,
-      updateData
+    const profile = await this.repository.updateByUserId(
+      actor.userId,
+      data
     );
+
+    return DoctorProfileResponseMapper.toDto(profile);
   }
 
   private buildUpdateData(
@@ -57,41 +58,26 @@ export class UpdateDoctorProfileUseCase {
     const data: UpdateDoctorProfileData = {};
 
     if (input.specialization !== undefined) {
-      data.specialization =
-        this.validator.validateSpecialization(
-          input.specialization
-        );
+      data.specialization = this.validator.validateSpecialization(
+        input.specialization
+      );
     }
 
     if (input.bio !== undefined) {
-      data.bio =
-        this.validator.validateOptionalText(
-          input.bio,
-          "Bio"
-        ) ?? null;
-    }
-
-    if (input.imageUrl !== undefined) {
-      data.imageUrl =
-        this.validator.validateImageUrl(
-          input.imageUrl
-        ) ?? null;
+      data.bio = this.validator.validateBio(input.bio) ?? null;
     }
 
     if (input.phone !== undefined) {
-      data.phone =
-        this.validator.validateOptionalText(
-          input.phone,
-          "Phone",
-          30
-        ) ?? null;
+      data.phone = this.validator.validatePhone(input.phone) ?? null;
+    }
+
+    if (input.imageUrl !== undefined) {
+      data.imageUrl = this.validator.validateImageUrl(input.imageUrl) ?? null;
     }
 
     if (input.experienceYears !== undefined) {
       data.experienceYears =
-        this.validator.validateExperienceYears(
-          input.experienceYears
-        ) ?? null;
+        this.validator.validateExperienceYears(input.experienceYears) ?? null;
     }
 
     return data;

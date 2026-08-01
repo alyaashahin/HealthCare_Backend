@@ -4,8 +4,7 @@ import type {
   Response
 } from "express";
 
-import type { ParamsDictionary } from "express-serve-static-core";
-
+import type { AuthenticatedActorDto } from "../../application/shared/dtos/AuthenticatedActorDto";
 import type { CreateDoctorProfileDto } from "../../application/doctor-profile/dtos/CreateDoctorProfileDto";
 import type { UpdateDoctorProfileDto } from "../../application/doctor-profile/dtos/UpdateDoctorProfileDto";
 
@@ -13,28 +12,25 @@ import type { CreateDoctorProfileUseCase } from "../../application/doctor-profil
 import type { GetDoctorProfileUseCase } from "../../application/doctor-profile/use-cases/GetDoctorProfileUseCase";
 import type { UpdateDoctorProfileUseCase } from "../../application/doctor-profile/use-cases/UpdateDoctorProfileUseCase";
 
+import type { TokenPayload } from "../../domain/services/ITokenService";
+
+import { UnauthorizedError } from "../../domain/errors/UnauthorizedError";
 import { ApiResponse } from "../../shared/response/ApiResponse";
 
-export interface DoctorProfileUserIdParams
-  extends ParamsDictionary {
-  userId: string;
+interface AuthenticatedRequest {
+  auth?: TokenPayload;
 }
-
-export type UpdateDoctorProfileBody = Omit<
-  UpdateDoctorProfileDto,
-  "userId"
->;
 
 export class DoctorProfileController {
   constructor(
-    private readonly createDoctorProfileUseCase: CreateDoctorProfileUseCase,
-    private readonly getDoctorProfileUseCase: GetDoctorProfileUseCase,
-    private readonly updateDoctorProfileUseCase: UpdateDoctorProfileUseCase
+    private readonly createUseCase: CreateDoctorProfileUseCase,
+    private readonly getUseCase: GetDoctorProfileUseCase,
+    private readonly updateUseCase: UpdateDoctorProfileUseCase
   ) {}
 
   create = async (
     request: Request<
-      ParamsDictionary,
+      Record<string, never>,
       unknown,
       CreateDoctorProfileDto
     >,
@@ -42,15 +38,16 @@ export class DoctorProfileController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const result =
-        await this.createDoctorProfileUseCase.execute(
-          request.body,
-          request.auth!
-        );
+      const actor = this.getActor(request);
+
+      const dto = await this.createUseCase.execute(
+        actor,
+        request.body
+      );
 
       response.status(201).json(
         ApiResponse.success(
-          result,
+          dto,
           "Doctor profile created successfully"
         )
       );
@@ -59,20 +56,19 @@ export class DoctorProfileController {
     }
   };
 
-  getByUserId = async (
-    request: Request<DoctorProfileUserIdParams>,
+  getMe = async (
+    request: Request,
     response: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const result =
-        await this.getDoctorProfileUseCase.execute(
-          request.params.userId
-        );
+      const actor = this.getActor(request);
+
+      const dto = await this.getUseCase.execute(actor);
 
       response.status(200).json(
         ApiResponse.success(
-          result,
+          dto,
           "Doctor profile retrieved successfully"
         )
       );
@@ -81,28 +77,26 @@ export class DoctorProfileController {
     }
   };
 
-  updateByUserId = async (
+  update = async (
     request: Request<
-      DoctorProfileUserIdParams,
+      Record<string, never>,
       unknown,
-      UpdateDoctorProfileBody
+      UpdateDoctorProfileDto
     >,
     response: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const result =
-        await this.updateDoctorProfileUseCase.execute(
-          {
-            userId: request.params.userId,
-            ...request.body
-          },
-          request.auth!
-        );
+      const actor = this.getActor(request);
+
+      const dto = await this.updateUseCase.execute(
+        actor,
+        request.body
+      );
 
       response.status(200).json(
         ApiResponse.success(
-          result,
+          dto,
           "Doctor profile updated successfully"
         )
       );
@@ -110,4 +104,20 @@ export class DoctorProfileController {
       next(error);
     }
   };
+
+  private getActor(
+    request: AuthenticatedRequest
+  ): AuthenticatedActorDto {
+    if (!request.auth) {
+      throw new UnauthorizedError(
+        "Authentication is required",
+        "AUTHENTICATION_REQUIRED"
+      );
+    }
+
+    return {
+      userId: request.auth.sub,
+      role: request.auth.role
+    };
+  }
 }

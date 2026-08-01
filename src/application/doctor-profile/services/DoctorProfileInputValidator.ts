@@ -1,19 +1,6 @@
 import { ValidationError } from "../../../domain/errors/ValidationError";
 
 export class DoctorProfileInputValidator {
-  validateUserId(userId?: string): string {
-    const value = userId?.trim();
-
-    if (!value) {
-      throw new ValidationError(
-        "User ID is required",
-        "USER_ID_REQUIRED"
-      );
-    }
-
-    return value;
-  }
-
   validateSpecialization(value: string): string {
     const specialization = value?.trim();
 
@@ -34,68 +21,47 @@ export class DoctorProfileInputValidator {
     return specialization;
   }
 
-  validateOptionalText(
-    value: string | null | undefined,
-    fieldName: string,
-    maxLength?: number
-  ): string | null | undefined {
-    if (value === undefined) return undefined;
-    if (value === null) return null;
+  validateBio(value: string | null | undefined): string | null | undefined {
+    return this.validateOptionalText(value, "Bio", 5000);
+  }
 
-    const normalizedValue = value.trim();
+  validatePhone(value: string | null | undefined): string | null | undefined {
+    const phone = this.validateOptionalText(value, "Phone", 30);
 
-    if (maxLength && normalizedValue.length > maxLength) {
-      throw new ValidationError(
-        `${fieldName} cannot exceed ${maxLength} characters`,
-        `${fieldName.toUpperCase().replace(/\s+/g, "_")}_TOO_LONG`
-      );
+    if (!phone) return phone;
+
+    if (!/^\+?[0-9 ()-]{7,30}$/.test(phone)) {
+      throw new ValidationError("Phone number is invalid", "INVALID_PHONE");
     }
 
-    return normalizedValue || null;
+    return phone;
   }
 
   validateImageUrl(
     value: string | null | undefined
   ): string | null | undefined {
-    const normalizedValue = this.validateOptionalText(
-      value,
-      "Image URL",
-      2048
-    );
+    const imageUrl = this.validateOptionalText(value, "Image URL", 2048);
 
-    if (!normalizedValue) return normalizedValue;
+    if (!imageUrl) return imageUrl;
 
     try {
-      const url = new URL(normalizedValue);
-
-      if (
-        url.protocol !== "http:" &&
-        url.protocol !== "https:"
-      ) {
-        throw new Error();
+      const url = new URL(imageUrl);
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error("Unsupported protocol");
       }
     } catch {
-      throw new ValidationError(
-        "Image URL is invalid",
-        "INVALID_IMAGE_URL"
-      );
+      throw new ValidationError("Image URL is invalid", "INVALID_IMAGE_URL");
     }
 
-    return normalizedValue;
+    return imageUrl;
   }
 
   validateExperienceYears(
     value: number | null | undefined
   ): number | null | undefined {
-    if (value === undefined || value === null) {
-      return value;
-    }
+    if (value === undefined || value === null) return value;
 
-    if (
-      !Number.isInteger(value) ||
-      value < 0 ||
-      value > 80
-    ) {
+    if (!Number.isInteger(value) || value < 0 || value > 80) {
       throw new ValidationError(
         "Experience years must be a whole number between 0 and 80",
         "INVALID_EXPERIENCE_YEARS"
@@ -103,5 +69,24 @@ export class DoctorProfileInputValidator {
     }
 
     return value;
+  }
+
+  private validateOptionalText(
+    value: string | null | undefined,
+    fieldName: string,
+    maxLength: number
+  ): string | null | undefined {
+    if (value === undefined || value === null) return value;
+
+    const normalizedValue = value.trim();
+
+    if (normalizedValue.length > maxLength) {
+      throw new ValidationError(
+        `${fieldName} cannot exceed ${maxLength} characters`,
+        `${fieldName.toUpperCase().replace(/\s+/g, "_")}_TOO_LONG`
+      );
+    }
+
+    return normalizedValue || null;
   }
 }
