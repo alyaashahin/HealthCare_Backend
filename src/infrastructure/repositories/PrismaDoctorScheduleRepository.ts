@@ -4,14 +4,12 @@ import type {
   DoctorScheduleRecord,
   IDoctorScheduleRepository,
   ScheduleUserRecord,
-  ScheduleUserRole,
   UpdateDoctorScheduleData
 } from "../../domain/repositories/IDoctorScheduleRepository";
 import { prisma } from "../database/prisma";
 
 export class PrismaDoctorScheduleRepository
-  implements IDoctorScheduleRepository
-{
+  implements IDoctorScheduleRepository {
   async findUserById(userId: string): Promise<ScheduleUserRecord | null> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -23,6 +21,20 @@ export class PrismaDoctorScheduleRepository
 
   async findById(id: string): Promise<DoctorScheduleRecord | null> {
     const schedule = await prisma.doctorSchedule.findUnique({ where: { id } });
+    return schedule ? this.toRecord(schedule) : null;
+  }
+  
+  async findByIdAndDoctorId(
+    id: string,
+    doctorId: string
+  ): Promise<DoctorScheduleRecord | null> {
+    const schedule = await prisma.doctorSchedule.findFirst({
+      where: {
+        id,
+        doctorId
+      }
+    });
+
     return schedule ? this.toRecord(schedule) : null;
   }
 
@@ -100,7 +112,7 @@ export class PrismaDoctorScheduleRepository
   private toUserRecord(
     user: Pick<User, "id" | "role">
   ): ScheduleUserRecord {
-    return { id: user.id, role: user.role as ScheduleUserRole };
+    return { id: user.id, role: user.role };
   }
 
   private toRecord(schedule: DoctorSchedule): DoctorScheduleRecord {

@@ -4,8 +4,8 @@ export interface DoctorScheduleResponseDto {
   id: string;
   doctorId: string;
   dayOfWeek: DayOfWeek;
-  startTime: Date;
-  endTime: Date;
+  startTime: string;
+  endTime: string;
   durationInMinutes: number;
   createdAt: Date;
 }

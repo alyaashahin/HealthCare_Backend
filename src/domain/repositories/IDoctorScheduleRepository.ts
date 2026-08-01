@@ -1,10 +1,9 @@
 import type { DayOfWeek } from "@prisma/client";
-
-export type ScheduleUserRole = "PATIENT" | "DOCTOR" | "FINANCE" | "ADMIN";
+import type { UserRoleValue } from "./IUserRepository";
 
 export interface ScheduleUserRecord {
   id: string;
-  role: ScheduleUserRole;
+  role: UserRoleValue;
 }
 
 export interface DoctorScheduleRecord {
@@ -26,16 +25,26 @@ export interface CreateDoctorScheduleData {
 }
 
 export interface UpdateDoctorScheduleData {
-  dayOfWeek: DayOfWeek;
-  startTime: Date;
-  endTime: Date;
-  durationInMinutes: number;
+  dayOfWeek?: DayOfWeek;
+  startTime?: Date;
+  endTime?: Date;
+  durationInMinutes?: number;
 }
 
 export interface IDoctorScheduleRepository {
   findUserById(userId: string): Promise<ScheduleUserRecord | null>;
+
   findById(id: string): Promise<DoctorScheduleRecord | null>;
-  findByDoctorId(doctorId: string): Promise<DoctorScheduleRecord[]>;
+  
+  findByIdAndDoctorId(
+  id: string,
+  doctorId: string
+): Promise<DoctorScheduleRecord | null>;
+
+  findByDoctorId(
+    doctorId: string
+  ): Promise<DoctorScheduleRecord[]>;
+
   findExactDuplicate(
     doctorId: string,
     dayOfWeek: DayOfWeek,
@@ -43,6 +52,7 @@ export interface IDoctorScheduleRepository {
     endTime: Date,
     excludeScheduleId?: string
   ): Promise<DoctorScheduleRecord | null>;
+
   findOverlapping(
     doctorId: string,
     dayOfWeek: DayOfWeek,
@@ -50,10 +60,15 @@ export interface IDoctorScheduleRepository {
     endTime: Date,
     excludeScheduleId?: string
   ): Promise<DoctorScheduleRecord | null>;
-  create(data: CreateDoctorScheduleData): Promise<DoctorScheduleRecord>;
+
+  create(
+    data: CreateDoctorScheduleData
+  ): Promise<DoctorScheduleRecord>;
+
   update(
     id: string,
     data: UpdateDoctorScheduleData
   ): Promise<DoctorScheduleRecord>;
+
   delete(id: string): Promise<void>;
 }

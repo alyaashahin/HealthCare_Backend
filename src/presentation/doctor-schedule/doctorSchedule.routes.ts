@@ -1,15 +1,16 @@
 import { Router } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
+
 import type { AddDoctorScheduleDto } from "../../application/doctor-schedule/dtos/AddDoctorScheduleDto";
 import type { UpdateDoctorScheduleDto } from "../../application/doctor-schedule/dtos/UpdateDoctorScheduleDto";
+
 import { doctorScheduleController } from "../../infrastructure/dependencies/doctorScheduleDependencies";
 import { tokenService } from "../../infrastructure/dependencies/authDependencies";
+
 import { createAuthenticationMiddleware } from "../middlewares/authenticationMiddleware";
 import { authorizeRoles } from "../middlewares/authorizationMiddleware";
-import type {
-  DoctorIdParams,
-  ScheduleIdParams
-} from "./DoctorScheduleController";
+
+import type { ScheduleIdParams } from "./DoctorScheduleController";
 
 export const doctorScheduleRouter = Router();
 
@@ -23,15 +24,15 @@ doctorScheduleRouter.post<
 >(
   "/",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
+  authorizeRoles("DOCTOR"),
   doctorScheduleController.create
 );
 
-doctorScheduleRouter.get<DoctorIdParams>(
-  "/doctor/:doctorId",
+doctorScheduleRouter.get(
+  "/my",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
-  doctorScheduleController.getByDoctorId
+  authorizeRoles("DOCTOR"),
+  doctorScheduleController.getMySchedules
 );
 
 doctorScheduleRouter.patch<
@@ -41,13 +42,13 @@ doctorScheduleRouter.patch<
 >(
   "/:scheduleId",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
+  authorizeRoles("DOCTOR"),
   doctorScheduleController.update
 );
 
 doctorScheduleRouter.delete<ScheduleIdParams>(
   "/:scheduleId",
   authenticationMiddleware,
-  authorizeRoles("DOCTOR", "ADMIN"),
+  authorizeRoles("DOCTOR"),
   doctorScheduleController.delete
 );

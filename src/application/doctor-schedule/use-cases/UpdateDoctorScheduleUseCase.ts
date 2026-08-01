@@ -1,19 +1,24 @@
 import type { AuthenticatedActorDto } from "../dtos/AuthenticatedActorDto";
 import type { DoctorScheduleResponseDto } from "../dtos/DoctorScheduleResponseDto";
 import type { UpdateDoctorScheduleDto } from "../dtos/UpdateDoctorScheduleDto";
-import type { IDoctorScheduleRepository } from "../../../domain/repositories/IDoctorScheduleRepository";
+import type {
+  DoctorScheduleRecord,
+  IDoctorScheduleRepository
+} from "../../../domain/repositories/IDoctorScheduleRepository";
+
 import { NotFoundError } from "../../../domain/errors/NotFoundError";
 import { ValidationError } from "../../../domain/errors/ValidationError";
-import { DoctorSchedulePolicy } from "../services/DoctorSchedulePolicy";
-import { DoctorScheduleRules } from "../services/DoctorScheduleRules";
-import { DoctorScheduleValidator } from "../services/DoctorScheduleValidator";
+
+import { DoctorScheduleRules } from "../validators/DoctorScheduleRules";
+import { DoctorScheduleValidator } from "../validators/DoctorScheduleValidator";
+
+import { formatTime } from "../../../shared/utils/dateTime";
 
 export class UpdateDoctorScheduleUseCase {
   constructor(
     private readonly repository: IDoctorScheduleRepository,
     private readonly validator: DoctorScheduleValidator,
-    private readonly rules: DoctorScheduleRules,
-    private readonly policy: DoctorSchedulePolicy
+    private readonly rules: DoctorScheduleRules
   ) {}
 
   async execute(
@@ -21,8 +26,12 @@ export class UpdateDoctorScheduleUseCase {
     input: UpdateDoctorScheduleDto,
     actor: AuthenticatedActorDto
   ): Promise<DoctorScheduleResponseDto> {
-    const scheduleId = this.validator.validateId(scheduleIdInput, "scheduleId");
-    const existing = await this.repository.findById(scheduleId);
+
+    const scheduleId =
+      this.validator.validateId(scheduleIdInput, "scheduleId");
+
+    const existing =
+      await this.repository.findById(scheduleId);
 
     if (!existing) {
       throw new NotFoundError(
@@ -31,9 +40,14 @@ export class UpdateDoctorScheduleUseCase {
       );
     }
 
-    this.policy.ensureCanManageDoctor(actor, existing.doctorId);
+    if (existing.doctorId !== actor.userId) {
+      throw new ValidationError(
+        "You can only update your own schedules",
+        "SCHEDULE_ACCESS_DENIED"
+      );
+    }
 
-    if (Object.values(input).every((value) => value === undefined)) {
+    if (Object.values(input).every(value => value === undefined)) {
       throw new ValidationError(
         "At least one schedule field must be provided",
         "EMPTY_SCHEDULE_UPDATE"
@@ -54,6 +68,17 @@ export class UpdateDoctorScheduleUseCase {
       excludeScheduleId: existing.id
     });
 
-    return this.repository.update(existing.id, schedule);
+    const updatedSchedule =
+      await this.repository.update(existing.id, schedule);
+
+    return {
+      id: updatedSchedule.id,
+      doctorId: updatedSchedule.doctorId,
+      dayOfWeek: updatedSchedule.dayOfWeek,
+      startTime: formatTime(updatedSchedule.startTime),
+      endTime: formatTime(updatedSchedule.endTime),
+      durationInMinutes: updatedSchedule.durationInMinutes,
+      createdAt: updatedSchedule.createdAt
+    };
   }
 }

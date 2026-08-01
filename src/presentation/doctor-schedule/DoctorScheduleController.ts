@@ -1,19 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
+
 import type { AddDoctorScheduleDto } from "../../application/doctor-schedule/dtos/AddDoctorScheduleDto";
 import type { UpdateDoctorScheduleDto } from "../../application/doctor-schedule/dtos/UpdateDoctorScheduleDto";
+
 import type { AddDoctorScheduleUseCase } from "../../application/doctor-schedule/use-cases/AddDoctorScheduleUseCase";
 import type { DeleteDoctorScheduleUseCase } from "../../application/doctor-schedule/use-cases/DeleteDoctorScheduleUseCase";
 import type { GetDoctorSchedulesUseCase } from "../../application/doctor-schedule/use-cases/GetDoctorSchedulesUseCase";
 import type { UpdateDoctorScheduleUseCase } from "../../application/doctor-schedule/use-cases/UpdateDoctorScheduleUseCase";
+
 import { UnauthorizedError } from "../../domain/errors/UnauthorizedError";
+import { ApiResponse } from "../../shared/response/ApiResponse";
 
 export interface ScheduleIdParams extends ParamsDictionary {
   scheduleId: string;
-}
-
-export interface DoctorIdParams extends ParamsDictionary {
-  doctorId: string;
 }
 
 export class DoctorScheduleController {
@@ -31,26 +31,68 @@ export class DoctorScheduleController {
   ): Promise<void> => {
     try {
       const actor = this.getActor(request);
-      const result = await this.addUseCase.execute(request.body, actor);
-      response.status(201).json({ success: true, data: result });
+
+      const result = await this.addUseCase.execute(
+        request.body,
+        actor
+      );
+
+      response.status(201).json(
+        ApiResponse.success(
+          result,
+          "Doctor schedule created successfully"
+        )
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMySchedules = async (
+    request: Request,
+    response: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const actor = this.getActor(request);
+
+      const result = await this.getUseCase.execute(actor);
+
+      response.status(200).json(
+        ApiResponse.success(
+          result,
+          "Doctor schedules retrieved successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
   };
 
   update = async (
-    request: Request<ScheduleIdParams, unknown, UpdateDoctorScheduleDto>,
+    request: Request<
+      ScheduleIdParams,
+      unknown,
+      UpdateDoctorScheduleDto
+    >,
     response: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
       const actor = this.getActor(request);
+
       const result = await this.updateUseCase.execute(
         request.params.scheduleId,
         request.body,
         actor
       );
-      response.status(200).json({ success: true, data: result });
+
+      response.status(200).json(
+        ApiResponse.success(
+          result,
+          "Doctor schedule updated successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
@@ -63,25 +105,18 @@ export class DoctorScheduleController {
   ): Promise<void> => {
     try {
       const actor = this.getActor(request);
-      await this.deleteUseCase.execute(request.params.scheduleId, actor);
-      response.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  };
 
-  getByDoctorId = async (
-    request: Request<DoctorIdParams>,
-    response: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const actor = this.getActor(request);
-      const result = await this.getUseCase.execute(
-        request.params.doctorId,
+      await this.deleteUseCase.execute(
+        request.params.scheduleId,
         actor
       );
-      response.status(200).json({ success: true, data: result });
+
+      response.status(200).json(
+        ApiResponse.success(
+          null,
+          "Doctor schedule deleted successfully"
+        )
+      );
     } catch (error) {
       next(error);
     }
