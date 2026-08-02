@@ -133,6 +133,6 @@ POST   /visits/:visitId/complete
 
 ---
 
-## Author
+## Developer
 
 Alyaa Shahin
